@@ -8,6 +8,7 @@ INSTALL_REQUIRES = [
 ]
 EXTRAS_REQUIRE = {
     'dev': [
+        'matplotlib',
         'pytest',
     ]
 }
