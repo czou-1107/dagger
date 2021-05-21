@@ -2,9 +2,17 @@
 # It is paired with a data fixture: data.py
 
 
-def var1(a, b):
+def var0(var1, var2):
+    return max(var1, var2)
+
+
+def var1(a: float, b: float):
     return a + b
 
 
-def var2(var1, c):
+def var2(var1, c: float):
     return var1 * c
+
+
+def var3(var2, a: float):
+    return var2 - a

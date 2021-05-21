@@ -3,7 +3,7 @@ Utility to import a script and extract its transform functions
 """
 import sys
 from functools import reduce
-from importlib import import_module
+from importlib import import_module, reload
 from inspect import getmembers, isfunction
 from pathlib import Path
 from typing import Callable, Dict, Tuple, Union
@@ -37,11 +37,13 @@ def extract_module_functions(script: Union[str, Path]) -> Dict[str, Callable]:
     """ Import a script and extract its functions """
     script_path = _resolve_script_path(script)
     script_dir, script_mod = _split_path(script_path)
+
     # Hack: temporarily add script dir to path, to enable non-pkg import
     sys.path.insert(0, script_dir)
 
     try:
         module = import_module(script_mod)
+        reload(module)
     finally:
         sys.path.pop(0)
 

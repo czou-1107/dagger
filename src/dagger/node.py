@@ -1,45 +1,71 @@
+import logging
 from dataclasses import dataclass, field
-from inspect import Signature
-from typing import Callable, Dict, List, Optional, Union
+from inspect import signature, Signature
+from typing import Callable, List, Optional
+
+from .utils.type_checker import check_type
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class VariableNode:
-    """
-    Representation of a variable in a computation DAG.
-    
-    If instantiated with :body:, then it is a computed node
-    """
     name: str
     dtype: type
     body: Optional[Callable] = None
-    is_initial_node: bool = field(init=False)
+    is_complete: bool = field(init=False)
+    is_initial: bool = field(init=False)
 
     def __post_init__(self):
         if self.dtype is Signature.empty:
             self.dtype = None
-        self.is_initial_node = self.body is None
+        self.is_complete = self.body is not None
+        self.is_initial = False
 
 
-    # The following are needed for networkx graphs
-    def _key(self):
-        return (self.name, self.dtype)
-
-    def __hash__(self):
-        return hash(self._key())
-
-    def __eq__(self, other):
-        if isinstance(other, tuple):
-            return self._key() == other
-        if isinstance(other, VariableNode):
-            return self._key() == other._key()
-        return False
-
-    # Might be useful for visualization
-    def __str__(self):
-        return f'{self.name}{"" if self.is_initial_node else " *"}'
+    def check_for_update(self, other):
+        """ Provide logic for updating node """
+        if self.name != other.name:
+            return
+        if self.dtype and other.dtype and self.dtype != other.dtype:
+            raise ValueError(f'Node {self.name} has inconsistent dtypes: '
+                             '{self.dtype}, {other.dtype}')
+        if not other.is_complete:
+            return
+        if self.is_complete:
+            raise ValueError(f'Attempting to add duplicate node: {self.name}')
+        self._update_body(other.body)
 
 
-    # Purely for convenience
+    def _update_body(self, body: Callable):
+        self.body = body
+        self.is_complete = True
+
+
     def __call__(self, *args, **kwargs):
-        return self.body(*args, **kwargs)
+        if not self.is_complete:
+            raise ValueError('Can\'t call incomplete node')
+        result = self.body(*args, **kwargs)
+        check_type(result, self.dtype)
+        return result
+
+
+@dataclass
+class FunctionSignatureTuple:
+    node: VariableNode
+    parents: List[VariableNode]
+
+
+    @classmethod
+    def from_signature(cls, func):
+        sig = signature(func)
+        node = VariableNode(name=func.__name__,
+                            dtype=sig.return_annotation,
+                            body=func)
+        parents = [
+            VariableNode(name=pnm, dtype=param.annotation, body=None)
+            for pnm, param in sig.parameters.items()
+        ]
+
+        return cls(node=node, parents=parents)

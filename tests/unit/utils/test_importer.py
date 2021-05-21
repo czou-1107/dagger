@@ -28,4 +28,4 @@ def test_get_module_funcs():
 
 def test_extract_functions():
     result = extract_module_functions(TEST_SCRIPT_LOC)
-    assert set(result) == {'var1', 'var2'}
+    assert set(result) == {'var0', 'var1', 'var2', 'var3'}

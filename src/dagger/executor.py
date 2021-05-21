@@ -2,12 +2,13 @@
 Main package class: imports script and applies transform functions to DataFrame
 """
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Union
 
 import pandas as pd
 
 from .utils.importer import extract_module_functions
 from .graph import ComputationGraph
-from .node import VariableNode
 
 
 @dataclass
@@ -16,22 +17,27 @@ class DagExecutor:
     # Is this wrapper even necessary? Potential uses:
     # - Link this to CLI, including loading and saving data
     # - Have this deal with the script loading and parsing, including multiple scripts
-    script: str
-    graph: ComputationGraph = field(init=False, default=None)
+    scripts: List[Union[str, Path]]
+    _computation_graph: ComputationGraph = field(init=False, default=None)
+
+    def __post_init__(self):
+        if isinstance(self.scripts, (str, Path)):
+            self.scripts = [self.scripts]
+        self._computation_graph = ComputationGraph()
 
 
     def plan(self):
-        funcs = extract_module_functions(self.script)
+        for script in self.scripts:
+            funcs = extract_module_functions(script)
+            self._computation_graph.add_functions(funcs)
 
-        self.graph = ComputationGraph.from_funcs(funcs)
-        self.graph.plan()
-
+        self._computation_graph.plan()
         return self
 
 
     def apply(self, data: pd.DataFrame) -> pd.DataFrame:
-        return self.graph.apply(data)
+        return self._computation_graph.apply(data)
 
 
     def get_graph(self):
-        return self.graph.graph
+        return self._computation_graph._graph
