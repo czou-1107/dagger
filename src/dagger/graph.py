@@ -1,103 +1,132 @@
-from dataclasses import dataclass, field
-from inspect import signature, Signature
-from typing import Dict, Callable, List, Set, Union
+import logging
+from typing import Dict, Callable, Optional, Union
 
 import networkx as nx
 import pandas as pd
 from networkx.algorithms import dag
 
-from .node import VariableNode
+from .utils.type_checker import check_type
+
+from .node import VariableNode, FunctionSignatureTuple
 
 
-@dataclass
+logger = logging.getLogger(__name__)
+
+
 class ComputationGraph:
     """
-    Computation engine: abstracts a set of computations on variables as a DAG
+    A DAG representing a set of dependent variable transforms
 
-    A variable is a node, and it is either an initial node (no parents, assumed
-    to exist in input data), or a computed node (depends on an initial or prior
-    computed node)
+    Nodes are variables (either initial or computed) and edges are dependencies
+
+    Usage:
+    ------
+    cg = ComputationGraph()
+    cg.initialize(funcs)
+    cg.plan()
+    cg.apply(data)
     """
-    graph: nx.DiGraph
-    execution_plan: List[VariableNode] = field(init=False, default=None)
-    initial_nodes: Set[str] = field(init=False, default=None)
+    def __init__(self, allow_undeclared_vars: bool = True):
+        self.allow_undeclared_vars = allow_undeclared_vars
+        self._graph = nx.DiGraph()
+        self._is_planned = False
 
 
-    @classmethod
-    def from_funcs(cls, funcs: Dict[str, Callable]):
-        """
-        Create a DAG of variables inferred from function signatures
-        """
-        graph = nx.DiGraph()
+    def __getitem__(self, nm: str) -> VariableNode:
+        """ Return node instance located at :nm: """
+        return self._graph.nodes[nm]['data']
 
-        for nm, f in funcs.items():
-            sig = signature(f)
-            func_node = VariableNode(name=nm,
-                                    dtype=sig.return_annotation,
-                                    body=f)
-            graph.add_node(func_node)
 
-            for pnm, param in sig.parameters.items():
-                parent_node = VariableNode(name=pnm,
-                                        dtype=param.annotation)
-                # Note: comparison logic here is based on VariableNode.__eq__()
-                # parent_node is instantiated with enough parameters for equality
-                # check only! The only nodes added here should be initial nodes!
-                if parent_node not in graph:
-                    graph.add_node(parent_node)
-                graph.add_edge(parent_node, func_node)
+    def _add_function_nodes(self, func: Callable):
+        """ Add nodes inferred from function signature"""
+        # func node will always be complete
+        func_info = FunctionSignatureTuple.from_signature(func)
+        self._add_or_update_node(func_info.node)
+        for parent in func_info.parents:
+            # parent nodes will always be incomplete
+            self._add_or_update_node(parent)
+            self._graph.add_edge(parent.name, func_info.node.name)
 
-        # Validate graph:
-        if not dag.is_directed_acyclic_graph(graph):
+
+    def _add_or_update_node(self, node: VariableNode):
+        """ Update or add a new node """
+        if node.name not in self._graph:
+            return self._graph.add_node(node.name, data=node)
+
+        existing_node = self[node.name]
+        existing_node.check_for_update(node)
+
+
+    def add_functions(self, funcs: Dict[str, Callable]):
+        """ Add nodes to graph as inferred from functions
+
+        Can be called multiple times """
+        if self._is_planned:
+            raise ValueError('Computation graph has already been planned. '
+                             'No further functions can be added.')
+
+        for _, f in funcs.items():
+            self._add_function_nodes(f)
+
+        if not dag.is_directed_acyclic_graph(self._graph):
             raise ValueError('Functions do not form a proper DAG!')
-
-        return cls(graph)
 
 
     def plan(self):
+        """ Plan execution order of functions, along with initial conditions to check
         """
-        Determine execution plan for graph
+        if self._is_planned:
+            logger.info('Graph is already planned. Skipping...')
+            return
 
-        Compute topological sort for computed variables
-        """
-        sorted_graph = dag.topological_sort(self.graph)
+        sorted_graph = dag.topological_sort(self._graph)
 
         initial_nodes = set()
         execution_plan = []
 
-        for node in sorted_graph:
-            if node.is_initial_node:
+        for nm in sorted_graph:
+            node = self[nm]
+            if not node.is_complete:
                 initial_nodes.add(node.name)
             else:
                 execution_plan.append(node)
 
         self.initial_nodes = initial_nodes
         self.execution_plan = execution_plan
+        self._is_planned = True
         return self
 
 
+    def _validate_data(self, data):
+        """ Validate that all data elements are correctly typed, if applicable """
+        nodes = self._graph.nodes
+        for nm in data:
+            try:
+                node = nodes[nm]['data']
+            except KeyError as e:
+                if self.allow_undeclared_vars:
+                    pass
+                else:
+                    raise ValueError('Graph does not allow undeclared variable:', nm) from e
+            check_type(data[nm], node.dtype)
+
+
     def apply(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Apply the planned computations, sequentially, to a DataFrame
-        """
-        if (missing_vars := self.initial_nodes - set(data)):
-            raise ValueError('Data missing required variables!', missing_vars)
+        """ Apply planned transformations to data """
+        if not self._is_planned:
+            raise ValueError('Must first run .plan()')
+        if (missing := self.initial_nodes.difference(data)):
+            raise ValueError(f'Data missing columns: {missing}')
 
+        self._validate_data(data)
         for node in self.execution_plan:
-            depends = self.graph.predecessors(node)
-            input_values = {n.name: data[n.name] for n in depends}
+            depends = self._graph.predecessors(node.name)
+            input_values = {n: data[n] for n in depends}
             node_value = node(**input_values)
-            # Alternately:
-            # sig = signature(node.body)
-            # inputs = {p: data[p] for p in sig.parameters}
-            # bound = sig.bind(**inputs)
-            # node_value = node.body(**bound.arguments)
-
             data[node.name] = node_value
-
         return data
 
 
     def visualize(self):
-        """ Use networkx's default plotting """
-        nx.draw(self.graph, with_labels=True)
+        """ Visualize computation graph """
+        nx.draw(self._graph, with_labels=True)
