@@ -32,6 +32,11 @@ class ComputationGraph:
         self._is_planned = False
 
 
+    def __getitem__(self, nm: str) -> VariableNode:
+        """ Return node instance located at :nm: """
+        return self._graph.nodes[nm]['data']
+
+
     def _add_function_nodes(self, func: Callable):
         """ Add nodes inferred from function signature"""
         # func node will always be complete
@@ -48,7 +53,7 @@ class ComputationGraph:
         if node.name not in self._graph:
             return self._graph.add_node(node.name, data=node)
 
-        existing_node = self._graph.nodes[node.name]['data']
+        existing_node = self[node.name]
         existing_node.check_for_update(node)
 
 
@@ -80,7 +85,7 @@ class ComputationGraph:
         execution_plan = []
 
         for nm in sorted_graph:
-            node = self._graph.nodes[nm]['data']
+            node = self[nm]
             if not node.is_complete:
                 initial_nodes.add(node.name)
             else:
