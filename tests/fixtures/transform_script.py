@@ -16,3 +16,10 @@ def var2(var1, c: float):
 
 def var3(var2, a: float):
     return var2 - a
+
+
+THIS_IS_NOT_A_FUNCTION = 1
+
+
+class ThisIsNotAFunction:
+    pass

@@ -10,7 +10,7 @@ from typing import Callable, Dict, Tuple, Union
 
 
 def _resolve_script_path(path: Union[str, Path], check: bool = True) -> Path:
-    """ Homogenize module path to file path, e.g. mod.submod to ../mod/submod.py """
+    """ Homogenize module path to file path, e.g. mod.submod to ./mod/submod.py """
     if isinstance(path, str) and not path.endswith('.py'):
         # Assume path is given as module, i.e. mod.submod.script
         path_parts = path.split('.')

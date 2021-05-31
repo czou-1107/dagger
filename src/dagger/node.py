@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from inspect import signature, Signature
+from inspect import getsource, signature, Signature
 from typing import Callable, List, Optional
 
 from .utils.type_checker import check_type
@@ -15,13 +15,11 @@ class VariableNode:
     dtype: type
     body: Optional[Callable] = None
     is_complete: bool = field(init=False)
-    is_initial: bool = field(init=False)
 
     def __post_init__(self):
         if self.dtype is Signature.empty:
             self.dtype = None
         self.is_complete = self.body is not None
-        self.is_initial = False
 
 
     def check_for_update(self, other):
@@ -30,7 +28,7 @@ class VariableNode:
             return
         if self.dtype and other.dtype and self.dtype != other.dtype:
             raise ValueError(f'Node {self.name} has inconsistent dtypes: '
-                             '{self.dtype}, {other.dtype}')
+                             f'{self.dtype}, {other.dtype}')
         if not other.is_complete:
             return
         if self.is_complete:
