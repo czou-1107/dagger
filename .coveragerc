@@ -1,0 +1,11 @@
+# Run with coverage run -m pytest && coverage report
+[run]
+source =
+    src/
+
+[report]
+exclude_lines =
+    def __repr__
+    if self.\debug
+    if debug
+    if __name__ == '__main__'

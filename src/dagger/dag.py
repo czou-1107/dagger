@@ -1,10 +1,13 @@
 import logging
-from typing import Dict, Callable, Optional, Union
+from pathlib import Path
+from typing import Dict, Callable, List, Union
 
 import networkx as nx
 import pandas as pd
 from networkx.algorithms import dag
+from networkx.readwrite.json_graph import node_link_data, node_link_graph
 
+from .utils.importer import extract_module_functions
 from .utils.type_checker import check_type
 
 from .node import VariableNode, FunctionSignatureTuple
@@ -13,7 +16,7 @@ from .node import VariableNode, FunctionSignatureTuple
 logger = logging.getLogger(__name__)
 
 
-class ComputationGraph:
+class DagExecutor:
     """
     A DAG representing a set of dependent variable transforms
 
@@ -21,8 +24,8 @@ class ComputationGraph:
 
     Usage:
     ------
-    cg = ComputationGraph()
-    cg.initialize(funcs)
+    ex = DagExecutor()
+    cg.add_function_scripts('path/to/script/')
     cg.plan()
     cg.apply(data)
     """
@@ -60,7 +63,9 @@ class ComputationGraph:
     def add_functions(self, funcs: Dict[str, Callable]):
         """ Add nodes to graph as inferred from functions
 
-        Can be called multiple times """
+        Can be called multiple times. Chainable.
+        Plan is generated and graph finalized using plan().
+        """
         if self._is_planned:
             raise ValueError('Computation graph has already been planned. '
                              'No further functions can be added.')
@@ -70,10 +75,27 @@ class ComputationGraph:
 
         if not dag.is_directed_acyclic_graph(self._graph):
             raise ValueError('Functions do not form a proper DAG!')
+        return self
+
+
+    def add_function_scripts(self, scripts: Union[List[Union[str, Path]], str, Path]):
+        """ Add nodes to graph inferred from functions in transform scripts
+
+        Can be called multiple times. Chainable.
+        Plan is generated and graph finalized using plan() """
+        if isinstance(scripts, (Path, str)):
+            scripts = [scripts]
+
+        for script in scripts:
+            funcs = extract_module_functions(script)
+            self.add_functions(funcs)
+        return self
 
 
     def plan(self):
         """ Plan execution order of functions, along with initial conditions to check
+
+        Chainable.
         """
         if self._is_planned:
             logger.info('Graph is already planned. Skipping...')
@@ -93,6 +115,7 @@ class ComputationGraph:
 
         self.initial_nodes = initial_nodes
         self.execution_plan = execution_plan
+        self._graph = nx.freeze(self._graph)
         self._is_planned = True
         return self
 
