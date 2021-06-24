@@ -9,6 +9,7 @@ from .dag import DagExecutor
 
 
 def plan_apply_dag(scripts: Union[str, List[str]], data: str, output: str):
+    """ Plan and execute a dag from a script """
     executor = (DagExecutor()
                 .add_function_scripts(scripts)
                 .plan()
