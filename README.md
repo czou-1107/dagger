@@ -5,7 +5,7 @@ Declaratively convert data engineering functions to DAGs
 Feature engineering can often be hampered by cluttered and arcane transformation code.
 Transformation functions, where they exist, often combine multiple feature definitions
 grouped semantically. At the same time, it is difficult to immediately trace out the lineage
-of any single variable: are there further dependencies? What if a script spans multiple
+of any single variable: are there further dependencies? What if your functions span multiple
 files? Further, the order of execution of these functions are likely very specific
 and it is difficult to immediately ascertain the implications of changing that order.
 
@@ -28,11 +28,10 @@ def my_transform(data: pd.DataFrame) -> pd.DataFrame:
 ```
 
 Not only is there boilerplate, it's not immediately clear how the inputs and outputs
-interaction with other transforms. Instead, the transformation can be represented as:
+interact with other transforms. Instead, the transformation can be represented as:
 ```
 def ab(a, b):
     return a + b
-
 
 def a2(a):
     return a ** 2
@@ -72,3 +71,8 @@ dagger --scripts $script_path --data $data_path
 ```
 
 Sample scripts can be found in `samples/`
+
+## Further work
+* Implement type checking. Likely to only implement simple checking, so for a more
+full-fledged schema check, try: [pandera](https://pandera.readthedocs.io/en/stable/)
+* Implement concurrency in the execution
