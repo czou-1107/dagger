@@ -128,7 +128,7 @@ class DagExecutor:
                 node = nodes[nm]['data']
             except KeyError as e:
                 if self.allow_undeclared_vars:
-                    pass
+                    continue
                 else:
                     raise ValueError('Graph does not allow undeclared variable:', nm) from e
             check_type(data[nm], node.dtype)
