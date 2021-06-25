@@ -40,6 +40,15 @@ class DagExecutor:
         return self._graph.nodes[nm]['data']
 
 
+    def _add_or_update_node(self, node: VariableNode):
+        """ Update or add a new node """
+        if node.name not in self._graph:
+            return self._graph.add_node(node.name, data=node)
+
+        existing_node = self[node.name]
+        existing_node.check_for_update(node)
+
+
     def _add_function_nodes(self, func: Callable):
         """ Add nodes inferred from function signature"""
         # func node will always be complete
@@ -49,15 +58,6 @@ class DagExecutor:
             # parent nodes will always be incomplete
             self._add_or_update_node(parent)
             self._graph.add_edge(parent.name, func_info.node.name)
-
-
-    def _add_or_update_node(self, node: VariableNode):
-        """ Update or add a new node """
-        if node.name not in self._graph:
-            return self._graph.add_node(node.name, data=node)
-
-        existing_node = self[node.name]
-        existing_node.check_for_update(node)
 
 
     def add_functions(self, funcs: Dict[str, Callable]):
