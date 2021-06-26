@@ -40,6 +40,10 @@ class DagExecutor:
         return self._graph.nodes[nm]['data']
 
 
+    def __contains__(self, nm: str) -> bool:
+        return nm in self._graph.nodes
+
+
     def _add_or_update_node(self, node: VariableNode):
         """ Update or add a new node """
         if node.name not in self._graph:
@@ -97,6 +101,8 @@ class DagExecutor:
 
         Chainable.
         """
+        if len(self._graph) == 0:
+            logger.warning('Planning an empty graph!')
         if self._is_planned:
             logger.info('Graph is already planned. Skipping...')
             return
