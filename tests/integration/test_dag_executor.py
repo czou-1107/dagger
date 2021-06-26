@@ -1,22 +1,15 @@
 import pytest
 
+from dagger.__main__ import plan_apply_dag
 
-# from dagger.executor import DagExecutor
+from samples import boston_housing_run
+from tests.fixtures.transform_script import TEST_DATA, EXPECTED_OUTPUT
 
 
+def test_execute_transform_script():
+    assert plan_apply_dag('tests.fixtures.transform_script', TEST_DATA) == EXPECTED_OUTPUT
 
-# def test_executor():
-#     executor = DagExecutor('tests.fixtures.transform_script')
-#     data = {'a': 1, 'b': 2, 'c': 3}
 
-#     executor.plan()
-#     result = executor.apply(data)
-#     assert result == {
-#         'a': 1,
-#         'b': 2,
-#         'c': 3,
-#         'var1': 3,
-#         'var2': 9,
-#         'var3': 8,
-#         'var0': 9,
-#     }
+def test_sample_scripts_boston():
+    result = boston_housing_run.main()
+    assert result.shape == (506, 20)  # Very simple ad hoc check. Could be better

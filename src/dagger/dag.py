@@ -40,15 +40,8 @@ class DagExecutor:
         return self._graph.nodes[nm]['data']
 
 
-    def _add_function_nodes(self, func: Callable):
-        """ Add nodes inferred from function signature"""
-        # func node will always be complete
-        func_info = FunctionSignatureTuple.from_signature(func)
-        self._add_or_update_node(func_info.node)
-        for parent in func_info.parents:
-            # parent nodes will always be incomplete
-            self._add_or_update_node(parent)
-            self._graph.add_edge(parent.name, func_info.node.name)
+    def __contains__(self, nm: str) -> bool:
+        return nm in self._graph.nodes
 
 
     def _add_or_update_node(self, node: VariableNode):
@@ -58,6 +51,17 @@ class DagExecutor:
 
         existing_node = self[node.name]
         existing_node.check_for_update(node)
+
+
+    def _add_function_nodes(self, func: Callable):
+        """ Add nodes inferred from function signature"""
+        # func node will always be complete
+        func_info = FunctionSignatureTuple.from_signature(func)
+        self._add_or_update_node(func_info.node)
+        for parent in func_info.parents:
+            # parent nodes will always be incomplete
+            self._add_or_update_node(parent)
+            self._graph.add_edge(parent.name, func_info.node.name)
 
 
     def add_functions(self, funcs: Dict[str, Callable]):
@@ -97,6 +101,8 @@ class DagExecutor:
 
         Chainable.
         """
+        if len(self._graph) == 0:
+            logger.warning('Planning an empty graph!')
         if self._is_planned:
             logger.info('Graph is already planned. Skipping...')
             return
