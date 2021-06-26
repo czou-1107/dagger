@@ -18,10 +18,11 @@ def plan_apply_dag(scripts: Union[str, List[str]],
     )
     result = executor.apply(data)
     if not output:
-        print('No output. First 5 rows:\n', output.head(5))
+        return result
     else:
         result.to_parquet(output)
 
 
 def main():
+    """ Convert to CLI """
     fire.Fire(plan_apply_dag)

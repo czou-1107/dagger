@@ -4,7 +4,6 @@ from dagger.dag import DagExecutor
 from dagger.node import VariableNode
 from dagger.utils.importer import extract_module_functions
 
-from tests.fixtures.transform_script import TEST_DATA, EXPECTED_OUTPUT
 from tests.fixtures.functions import typed_func, untyped_func
 
 
@@ -93,8 +92,5 @@ class TestPlan:
 
 
 class TestApply:
-    def test_with_mock_script(self, mock_script_loc):
-        ex = DagExecutor()
-        ex.add_function_scripts(mock_script_loc)
-        ex.plan()
-        assert ex.apply(TEST_DATA) == EXPECTED_OUTPUT
+    # This is really in the realm of integration test
+    pass
