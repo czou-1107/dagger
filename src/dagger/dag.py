@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Callable, List, Union
 
+import dask.dataframe as dd
 import networkx as nx
 import pandas as pd
 from networkx.algorithms import dag
@@ -12,6 +13,7 @@ from .utils.type_checker import check_type
 
 from .node import VariableNode, FunctionSignatureTuple
 
+DEFAULT_DASK_CHUNKSIZE = 10000
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +31,13 @@ class DagExecutor:
     cg.plan()
     cg.apply(data)
     """
-    def __init__(self, allow_undeclared_vars: bool = True):
+    def __init__(self,
+                 use_dask: bool = False,
+                 dask_chunksize: int = DEFAULT_DASK_CHUNKSIZE,
+                 allow_undeclared_vars: bool = True):
         self.allow_undeclared_vars = allow_undeclared_vars
+        self.use_dask = use_dask
+        self.dask_chunksize = dask_chunksize
         self._graph = nx.DiGraph()
         self._is_planned = False
 
@@ -148,11 +155,17 @@ class DagExecutor:
             raise ValueError(f'Data missing columns: {missing}')
 
         self._validate_data(data)
+        if self.use_dask:
+            data = dd.from_pandas(data, chunksize=self.dask_chunksize)
+
         for node in self.execution_plan:
             depends = self._graph.predecessors(node.name)
             input_values = {n: data[n] for n in depends}
             node_value = node(**input_values)
-            data[node.name] = node_value
+            data[node.name] = pd.Series(node_value)
+
+        if self.use_dask:
+            data = data.compute()
         return data
 
 
