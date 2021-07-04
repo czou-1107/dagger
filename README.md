@@ -72,7 +72,16 @@ dagger --scripts $script_path --data $data_path
 
 Sample scripts can be found in `samples/`
 
+### Concurrency
+Concurrency is currently implemented via dask. To utilize it:
+```
+executor = DagExecutor(use_dask=True)
+```
+or
+```
+dagger --scripts $script_path --data $data_path --use_dask
+```
+
 ## Further work
 * Implement type checking. Likely to only implement simple checking, so for a more
 full-fledged schema check, try: [pandera](https://pandera.readthedocs.io/en/stable/)
-* Implement concurrency in the execution
